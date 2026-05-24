@@ -7,13 +7,13 @@ if 'disclaimer_acknowledged' not in st.session_state:
 if not st.session_state.disclaimer_acknowledged:
     @st.dialog("Important Notice")
     def show_disclaimer():
-        st.write("""All of the data presented in this application is publicly available data obtained from a number of data sources. There has then been some alteration of the data to allow comparisons and measurements.
+        st.write("""All of the data presented in this application is from a number of publicly available data sources. There has then been some alteration of the data to allow comparisons and measurements.
         
                  However, this is still data relating to players physical and technical abilities and as such it should be treated in line with GDPR.
                  
                  Please only use the data to assist with decision making about players suitability to perform at the required level.
                  
-                 Please do not share or reproduce this data to anyone outside of Chroely Football Club.
+                 Please do not share or reproduce this data to anyone outside of Chorley Football Club.
                  
                  Many thanks.""")
         if st.button("I Acknowledge", use_container_width=True):
