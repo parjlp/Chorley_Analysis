@@ -135,9 +135,8 @@ results_df = pd.DataFrame(results)
 # Add priority metric percentiles to results
 for m in priority_metrics:
     col_name = f'{m} percentile'
-    results_df[col_name] = results_df['Player'].map(
-        role_df.set_index('Player')[col_name]
-    )
+    percentile_map = role_df.drop_duplicates(subset='Player').set_index('Player')[col_name]
+    results_df[col_name] = results_df['Player'].map(percentile_map)
 
 # ── Filter to only players who are better on at least one priority metric ──
 if priority_metrics:
