@@ -77,15 +77,7 @@ with st.expander("Select Metrics", expanded=False):
             if st.checkbox(metric, value=st.session_state.get(f"rel_metric_{metric}", False), key=f"rel_metric_{metric}"):
                 selected_metrics.append(metric)
 
-# ── Build display columns ──────────────────────────────────────────────────────
-if view_mode == "Actual values":
-    display_cols = info_cols + [c for c in selected_metrics if c in filtered.columns]
-else:
-    display_cols = info_cols + [f'{c} percentile' for c in selected_metrics if f'{c} percentile' in filtered.columns]
-
-display_cols = [c for c in display_cols if c in filtered.columns]
-
-# ── Shared metric columns (IMPORTANT: reuse for both tables) ────────────────
+# ── Shared metric columns (single source of truth) ────────────────────────────
 
 if view_mode == "Actual values":
     metric_cols = [
