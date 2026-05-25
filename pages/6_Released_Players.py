@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import sys
-import os
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -21,145 +20,74 @@ df_all = pd.concat(
     ignore_index=True
 )
 
-released_path = Path(__file__).resolve().parents[1] / "Players" / "Released Players.xlsx"
-
-if not released_path.exists():
-    st.error(f"Missing file:\n{released_path}")
+# ── Filter to released players ─────────────────────────────────────────────────
+if 'Due For Release' not in df_all.columns:
+    st.error("Column 'Due For Release' not found in data. Please check your all_divisions.xlsx file.")
     st.stop()
 
-df_released = pd.read_excel(released_path)
+released = df_all[df_all['Due For Release'] == 1].copy()
 
-# ── CLEANING ───────────────────────────────────────────────────────────────────
-def clean(x):
-    if pd.isna(x):
-        return ""
-    x = str(x)
-    x = unicodedata.normalize("NFKD", x)
-    x = re.sub(r"[^\w\s]", "", x)
-    return x.lower().strip()
-
-def get_surname(x):
-    return str(x).split()[-1].lower().strip() if pd.notna(x) else ""
-
-# ── BUILD KEYS ────────────────────────────────────────────────────────────────
-df_all["team_key"] = df_all["Team"].apply(clean)
-df_all["surname_key"] = df_all["Player"].apply(get_surname)
-df_all["first_initial"] = df_all["Player"].apply(
-    lambda x: str(x)[0].lower() if pd.notna(x) else ""
-)
-
-df_all = df_all.drop_duplicates(subset=["Player", "Team"]).copy()
-
-df_released["team_key"] = df_released.iloc[:, 2].fillna("").astype(str).apply(clean)
-
-df_released["surname_key"] = (
-    df_released.iloc[:, 0].fillna("").astype(str) + " " +
-    df_released.iloc[:, 1].fillna("").astype(str)
-).apply(clean).apply(lambda x: x.split()[-1] if x else "")
-
-df_released["first_initial"] = df_released.iloc[:, 0].fillna("").astype(str).apply(
-    lambda x: x[0].lower() if x else ""
-)
-
-df_released = df_released.drop_duplicates()
-
-# ── MATCHING ENGINE (BALANCED FIX) ────────────────────────────────────────────
-matched_rows = []
-
-for _, r in df_released.iterrows():
-
-    r_surname = r["surname_key"]
-    r_team = r["team_key"]
-    r_initial = r["first_initial"]
-
-    if not r_surname:
-        continue
-
-    # STEP 1: primary match (surname)
-    pool = df_all[df_all["surname_key"] == r_surname].copy()
-
-    # STEP 2: fallback match (initial if surname fails)
-    if pool.empty:
-        pool = df_all[df_all["first_initial"] == r_initial].copy()
-
-    # STEP 3: if still empty, skip
-    if pool.empty:
-        continue
-
-    # STEP 4: scoring system (no blocking, just ranking)
-    def score(row):
-        team_score = 1 if (
-            r_team in row["team_key"] or row["team_key"] in r_team
-        ) else 0
-
-        initial_score = 1 if row["first_initial"] == r_initial else 0
-
-        return (team_score * 2) + initial_score
-
-    pool["score"] = pool.apply(score, axis=1)
-
-    best_match = pool.sort_values("score", ascending=False).iloc[0]
-
-    matched_rows.append(best_match)
-
-matched = pd.DataFrame(matched_rows)
-
-# final dedupe safety (only here, not earlier)
-matched = matched.drop_duplicates(subset=["Player", "Team"])
-
-st.write(f"Matched players: {len(matched)}")
-
-if matched.empty:
-    st.warning("No matches found — check naming or dataset structure")
+if released.empty:
+    st.warning("No released players found.")
     st.stop()
 
-# ── DISPLAY ───────────────────────────────────────────────────────────────────
-info_cols = [
-    "Player", "Team", "Position", "Age",
-    "Matches played", "Minutes played", "Role"
-]
+st.markdown(f"**{len(released)} released players found**")
 
-def metric_cols(df):
-    return [
-        c for c in df.columns
-        if c not in info_cols and not c.endswith(" percentile")
-    ]
+# ── Helpers ────────────────────────────────────────────────────────────────────
+info_cols = ['Player', 'Team', 'Division', 'Position', 'Age', 'Matches played', 'Minutes played', 'Role']
 
-with st.sidebar:
-    st.subheader("Filters")
+def get_metric_cols(df):
+    return [c for c in df.columns if not c.endswith(' percentile') and c not in info_cols]
 
-    if "Role" in matched.columns:
-        roles = ["All"] + sorted(matched["Role"].dropna().astype(str).unique().tolist())
-    else:
-        roles = ["All"]
+# ── Filters ────────────────────────────────────────────────────────────────────
+col1, col2, col3 = st.columns(3)
+with col1:
+    roles = ['All'] + sorted(released['Role'].dropna().unique().tolist())
+    selected_role = st.selectbox("Filter by Role", roles)
+with col2:
+    divisions = ['All'] + sorted(released['Division'].dropna().unique().tolist())
+    selected_division = st.selectbox("Filter by Division", divisions)
+with col3:
+    view_mode = st.radio("View mode", ["Actual values", "Percentiles"], horizontal=True)
 
-    role = st.selectbox("Role", roles)
+filtered = released.copy()
+if selected_role != 'All':
+    filtered = filtered[filtered['Role'] == selected_role]
+if selected_division != 'All':
+    filtered = filtered[filtered['Division'] == selected_division]
 
-    if role == "All":
-        filtered = matched.copy()
-    else:
-        filtered = matched[matched["Role"].astype(str) == role].copy()
+# ── Metric selection ───────────────────────────────────────────────────────────
+all_metrics = get_metric_cols(filtered)
 
-    metrics = metric_cols(filtered)
+with st.expander("Select Metrics", expanded=False):
+    btn_col1, btn_col2, _ = st.columns([1, 1, 6])
+    with btn_col1:
+        if st.button("Select All", key="rel_select_all"):
+            for m in all_metrics:
+                st.session_state[f"rel_metric_{m}"] = True
+    with btn_col2:
+        if st.button("Deselect All", key="rel_deselect_all"):
+            for m in all_metrics:
+                st.session_state[f"rel_metric_{m}"] = False
 
-    selected_metrics = [
-        m for m in metrics
-        if st.checkbox(m, key=f"m_{m}")
-    ]
+    cols = st.columns(4)
+    selected_metrics = []
+    for i, metric in enumerate(all_metrics):
+        with cols[i % 4]:
+            if st.checkbox(metric, value=st.session_state.get(f"rel_metric_{metric}", False), key=f"rel_metric_{metric}"):
+                selected_metrics.append(metric)
 
-display_df = filtered.copy()
+# ── Build display columns ──────────────────────────────────────────────────────
+if view_mode == "Actual values":
+    display_cols = info_cols + [c for c in selected_metrics if c in filtered.columns]
+else:
+    display_cols = info_cols + [f'{c} percentile' for c in selected_metrics if f'{c} percentile' in filtered.columns]
 
-cols = info_cols + selected_metrics if selected_metrics else info_cols
-cols = [c for c in cols if c in display_df.columns]
+display_cols = [c for c in display_cols if c in filtered.columns]
 
-st.markdown(f"**{len(display_df)} released players found**")
-
-if display_df.empty:
-    st.warning("No players match the current filters.")
-    st.stop()
-
+# ── Table ──────────────────────────────────────────────────────────────────────
 st.dataframe(
-    display_df[cols].reset_index(drop=True),
+    filtered[display_cols].reset_index(drop=True),
     use_container_width=True,
     hide_index=True
 )
