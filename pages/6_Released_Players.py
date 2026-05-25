@@ -26,6 +26,9 @@ if 'Due For Release' not in df_all.columns:
     st.stop()
 
 released = df_all[df_all['Due For Release'] == 1].copy()
+chorley = df_all[
+    df_all["Team"].fillna("").str.contains("chorley", case=False)
+].copy()
 
 if released.empty:
     st.warning("No released players found.")
