@@ -85,6 +85,39 @@ else:
 
 display_cols = [c for c in display_cols if c in filtered.columns]
 
+# ── Shared metric columns (IMPORTANT: reuse for both tables) ────────────────
+
+if view_mode == "Actual values":
+    metric_cols = [
+        c for c in selected_metrics
+        if c in filtered.columns
+    ]
+else:
+    metric_cols = [
+        f"{c} percentile"
+        for c in selected_metrics
+        if f"{c} percentile" in filtered.columns
+    ]
+
+display_cols = info_cols + metric_cols
+display_cols = [c for c in display_cols if c in filtered.columns]
+
+st.markdown("### 🔵 Chorley Players")
+
+chorley_df = filtered[
+    filtered["Team"].str.contains("Chorley", case=False, na=False)
+].copy()
+
+if chorley_df.empty:
+    st.info("No Chorley players in current selection.")
+else:
+    st.dataframe(
+        chorley_df[display_cols].reset_index(drop=True),
+        use_container_width=True,
+        hide_index=True
+    )
+
+
 # ── Table ──────────────────────────────────────────────────────────────────────
 st.dataframe(
     filtered[display_cols].reset_index(drop=True),
