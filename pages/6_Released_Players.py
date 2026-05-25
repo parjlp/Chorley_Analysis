@@ -103,15 +103,12 @@ chorley_df = df_all[
     df_all["Team"].fillna("").str.contains("chorley", case=False)
 ].copy()
 
+# apply SAME filters as main table (except release)
+if selected_role != 'All':
+    chorley_df = chorley_df[chorley_df['Role'] == selected_role]
 
-if chorley_df.empty:
-    st.info("No Chorley players in current selection.")
-else:
-    st.dataframe(
-        chorley_df[display_cols].reset_index(drop=True),
-        use_container_width=True,
-        hide_index=True
-    )
+if selected_division != 'All':
+    chorley_df = chorley_df[chorley_df['Division'] == selected_division]
 
 
 # ── Table ──────────────────────────────────────────────────────────────────────
