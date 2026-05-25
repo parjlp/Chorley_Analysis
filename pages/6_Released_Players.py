@@ -97,21 +97,51 @@ else:
 display_cols = info_cols + metric_cols
 display_cols = [c for c in display_cols if c in filtered.columns]
 
+
+# ── CHORLEY TABLE ─────────────────────────────────────────────────────────────
+
 st.markdown("### 🔵 Chorley Players")
 
 chorley_df = df_all[
     df_all["Team"].fillna("").str.contains("chorley", case=False)
 ].copy()
 
-# apply SAME filters as main table (except release)
+# apply SAME filters as main table (except release filter)
 if selected_role != 'All':
     chorley_df = chorley_df[chorley_df['Role'] == selected_role]
 
 if selected_division != 'All':
     chorley_df = chorley_df[chorley_df['Division'] == selected_division]
 
+# build Chorley metric columns (must match main logic)
+if view_mode == "Actual values":
+    chorley_metric_cols = [
+        c for c in selected_metrics
+        if c in chorley_df.columns
+    ]
+else:
+    chorley_metric_cols = [
+        f"{c} percentile"
+        for c in selected_metrics
+        if f"{c} percentile" in chorley_df.columns
+    ]
 
-# ── Table ──────────────────────────────────────────────────────────────────────
+chorley_display_cols = info_cols + chorley_metric_cols
+chorley_display_cols = [c for c in chorley_display_cols if c in chorley_df.columns]
+
+# render Chorley table
+if chorley_df.empty:
+    st.info("No Chorley players found in current selection.")
+else:
+    st.dataframe(
+        chorley_df[chorley_display_cols].reset_index(drop=True),
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# ── MAIN TABLE (Released Players) ────────────────────────────────────────────
+
 st.dataframe(
     filtered[display_cols].reset_index(drop=True),
     use_container_width=True,
