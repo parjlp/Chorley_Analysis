@@ -149,7 +149,7 @@ def load_data():
                     .mul(100)
                     .round(1)
                 )
-
+        data = data.loc[:, ~data.columns.duplicated()]
         return data
 
     df_defenders = add_percentile_ranks(
