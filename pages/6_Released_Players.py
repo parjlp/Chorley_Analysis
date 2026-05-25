@@ -96,9 +96,10 @@ display_cols = [c for c in display_cols if c in filtered.columns]
 
 st.markdown("### 🔵 Chorley Players")
 
-chorley_df = filtered[
-    filtered["Team"].str.contains("Chorley", case=False, na=False)
+chorley_df = df_all[
+    df_all["Team"].fillna("").str.contains("chorley", case=False)
 ].copy()
+
 
 if chorley_df.empty:
     st.info("No Chorley players in current selection.")
