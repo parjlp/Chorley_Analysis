@@ -20,6 +20,7 @@ def render_nav(current_page=""):
     ("📡 Radar",            "pages/5_Radar.py"),
     ("🔓 Released Players", "pages/6_Released_Players.py"),
     ("🔍 Similar Players",  "pages/7_Similar_Players.py"),
+    ("⬆️ Player Upgrade", "pages/8_Player_Upgrade.py"),
 ]
 
     cols = st.columns(len(pages))
