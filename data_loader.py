@@ -103,7 +103,7 @@ def load_data():
         'xG against', 'xG against per 90',
         'Prevented goals', 'Prevented goals per 90',
         'Back passes received as GK per 90',
-        'Exits per 90', 'Aerial duels per 90.1',
+        'Exits per 90', 'GK Aerial duels per 90',
         'Free kicks per 90', 'Direct free kicks per 90', 'Direct free kicks on target, %',
         'Passes per 90', 'Accurate passes, %',
         'Long passes per 90', 'Accurate long passes, %',
