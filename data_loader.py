@@ -54,7 +54,7 @@ def load_data():
         'Long passes per 90', 'Accurate long passes, %',
         'Progressive passes per 90', 'Accurate progressive passes, %',
         'Passes to final third per 90', 'Accurate passes to final third, %',
-        'Average pass length, m', 'Role'
+        'Average pass length, m', 'Role''Division', 'Due For Release'
     ]
 
     midfielder_cols = [
@@ -76,7 +76,7 @@ def load_data():
         'Through passes per 90', 'Accurate through passes, %',
         'Shot assists per 90', 'Second assists per 90', 'Deep completions per 90',
         'Touches in box per 90', 'Offensive duels per 90', 'Offensive duels won, %',
-        'Role'
+        'Role', 'Role''Division', 'Due For Release'
     ]
 
     forward_cols = [
@@ -92,7 +92,7 @@ def load_data():
         'Touches in box per 90', 'Progressive runs per 90', 'Accelerations per 90',
         'Fouls suffered per 90', 'Received passes per 90',
         'Key passes per 90', 'Passes to penalty area per 90', 'Accurate passes to penalty area, %',
-        'Role'
+        'Role', 'Role''Division', 'Due For Release'
     ]
 
     goalkeeper_cols = [
@@ -108,7 +108,7 @@ def load_data():
         'Passes per 90', 'Accurate passes, %',
         'Long passes per 90', 'Accurate long passes, %',
         'Average pass length, m', 'Average long pass length, m',
-        'Role'
+        'Role', 'Role''Division', 'Due For Release'
     ]
 
     exclude_cols = [
