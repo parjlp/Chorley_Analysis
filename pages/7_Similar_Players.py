@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 import sys
 from pathlib import Path
 
@@ -46,65 +47,48 @@ role_df_map = {
     "Goalkeeper": df_goalkeepers,
 }
 role_df = role_df_map.get(role, df_all)
-available_metrics = get_metric_cols(role_df)
-percentile_metrics = [f'{m} percentile' for m in available_metrics if f'{m} percentile' in role_df.columns]
-clean_metrics = [m for m in available_metrics if f'{m} percentile' in role_df.columns]
+clean_metrics = [m for m in get_metric_cols(role_df) if f'{m} percentile' in role_df.columns]
 
 st.markdown(f"**Role:** {role} — finding similar players from {len(role_df) - 1} other {role.lower()}s")
 st.markdown("---")
 
-# ── Metric weights ────────────────────────────────────────────────────────────
-with st.expander("Adjust Metric Weights", expanded=False):
-    st.markdown("Set each metric's weight. Set to **0** to exclude it from the similarity calculation.")
+# ── Priority metric selection ─────────────────────────────────────────────────
+st.subheader("Priority Metrics")
+st.markdown("Select up to **5 metrics** to prioritise — these will be weighted **5x** higher than all others.")
 
-    btn_col1, btn_col2, btn_col3, _ = st.columns([1, 1, 1, 5])
-    with btn_col1:
-        if st.button("All Equal", key="sim_equal"):
-            for m in clean_metrics:
-                st.session_state[f"weight_{m}"] = 1
-    with btn_col2:
-        if st.button("Select All", key="sim_select_all"):
-            for m in clean_metrics:
-                st.session_state[f"weight_{m}"] = 1
-    with btn_col3:
-        if st.button("Deselect All", key="sim_deselect_all"):
-            for m in clean_metrics:
-                st.session_state[f"weight_{m}"] = 0
-
+with st.expander("Select Priority Metrics", expanded=True):
     cols = st.columns(4)
-    weights = {}
+    priority_metrics = []
     for i, metric in enumerate(clean_metrics):
         with cols[i % 4]:
-            weights[metric] = st.slider(
+            already_5 = len(priority_metrics) >= 5
+            current_val = st.session_state.get(f"priority_{metric}", False)
+            disabled = already_5 and not current_val
+            if st.checkbox(
                 metric,
-                min_value=0,
-                max_value=3,
-                value=st.session_state.get(f"weight_{metric}", 1),
-                step=1,
-                key=f"weight_{metric}"
-            )
+                value=current_val,
+                key=f"priority_{metric}",
+                disabled=disabled
+            ):
+                priority_metrics.append(metric)
+
+if len(priority_metrics) > 0:
+    st.success(f"Priority metrics ({len(priority_metrics)}/5): {', '.join(priority_metrics)}")
+
+st.markdown("---")
 
 # ── Similarity calculation ────────────────────────────────────────────────────
-active_metrics = [m for m in clean_metrics if weights.get(m, 1) > 0]
-active_percentile_cols = [f'{m} percentile' for m in active_metrics]
+# Build weight array — priority metrics get 5, others get 1
+weight_array = np.array([5.0 if m in priority_metrics else 1.0 for m in clean_metrics])
+weight_array = weight_array / weight_array.sum()
 
-if len(active_metrics) == 0:
-    st.warning("Please set at least one metric weight above 0.")
-    st.stop()
+player_percentiles = np.array([player_row[f'{m} percentile'] for m in clean_metrics], dtype=float)
 
-# Build weight array
-weight_array = np.array([weights[m] for m in active_metrics], dtype=float)
-weight_array = weight_array / weight_array.sum()  # normalise to sum to 1
-
-# Get percentile values for selected player
-player_percentiles = np.array([player_row[f'{m} percentile'] for m in active_metrics], dtype=float)
-
-# Calculate weighted euclidean distance for all other players in the same role
 other_players = role_df[role_df['Player'] != selected_player].copy()
 
 distances = []
 for _, row in other_players.iterrows():
-    other_percentiles = np.array([row[f'{m} percentile'] for m in active_metrics], dtype=float)
+    other_percentiles = np.array([row[f'{m} percentile'] for m in clean_metrics], dtype=float)
     diff = player_percentiles - other_percentiles
     weighted_dist = np.sqrt(np.sum(weight_array * diff ** 2))
     distances.append(weighted_dist)
@@ -114,22 +98,22 @@ other_players['similarity_%'] = (1 - other_players['similarity_score'] / 100).cl
 
 top5 = other_players.nsmallest(5, 'similarity_score')
 
-# ── Results ───────────────────────────────────────────────────────────────────
+# ── Results table ─────────────────────────────────────────────────────────────
 st.subheader(f"Top 5 Most Similar Players to {selected_player}")
 
-result_cols = info_cols + ['similarity_%'] + [f'{m} percentile' for m in active_metrics]
-result_cols = [c for c in result_cols if c in top5.columns]
+show_cols = info_cols + ['similarity_%']
+if priority_metrics:
+    show_cols += [f'{m} percentile' for m in priority_metrics if f'{m} percentile' in top5.columns]
 
-display_df = top5[result_cols].reset_index(drop=True)
+display_df = top5[show_cols].reset_index(drop=True)
 display_df['similarity_%'] = display_df['similarity_%'].round(1)
-
 st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 # ── Radar comparison ──────────────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("Radar Comparison")
 
-import plotly.graph_objects as go
+radar_metrics = priority_metrics if priority_metrics else clean_metrics[:10]
 
 compare_players = st.multiselect(
     "Select players from the top 5 to compare on radar",
@@ -138,13 +122,12 @@ compare_players = st.multiselect(
     key="sim_radar_select"
 )
 
-if len(compare_players) >= 1 and len(active_metrics) >= 3:
+if len(compare_players) >= 1 and len(radar_metrics) >= 3:
     fig = go.Figure()
 
-    # Add selected player
     fig.add_trace(go.Scatterpolar(
-        r=[player_row[f'{m} percentile'] for m in active_metrics] + [player_row[f'{active_metrics[0]} percentile']],
-        theta=active_metrics + [active_metrics[0]],
+        r=[player_row[f'{m} percentile'] for m in radar_metrics] + [player_row[f'{radar_metrics[0]} percentile']],
+        theta=radar_metrics + [radar_metrics[0]],
         fill='toself',
         name=selected_player,
         line_color='#1f77b4'
@@ -154,8 +137,8 @@ if len(compare_players) >= 1 and len(active_metrics) >= 3:
     for idx, player in enumerate(compare_players):
         row = top5[top5['Player'] == player].iloc[0]
         fig.add_trace(go.Scatterpolar(
-            r=[row[f'{m} percentile'] for m in active_metrics] + [row[f'{active_metrics[0]} percentile']],
-            theta=active_metrics + [active_metrics[0]],
+            r=[row[f'{m} percentile'] for m in radar_metrics] + [row[f'{radar_metrics[0]} percentile']],
+            theta=radar_metrics + [radar_metrics[0]],
             fill='toself',
             name=player,
             line_color=colours[idx % len(colours)],
@@ -170,4 +153,4 @@ if len(compare_players) >= 1 and len(active_metrics) >= 3:
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Select at least one comparison player and 3 metrics to display the radar.")
+    st.info("Select at least one comparison player and ensure at least 3 priority metrics are chosen to display the radar.")
