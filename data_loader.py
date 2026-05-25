@@ -54,7 +54,7 @@ def load_data():
         'Long passes per 90', 'Accurate long passes, %',
         'Progressive passes per 90', 'Accurate progressive passes, %',
         'Passes to final third per 90', 'Accurate passes to final third, %',
-        'Average pass length, m', 'Role''Division', 'Due For Release'
+        'Average pass length, m', 'Role', 'Division', 'Due For Release'
     ]
 
     midfielder_cols = [
