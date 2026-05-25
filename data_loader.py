@@ -7,7 +7,7 @@ import streamlit as st
 def load_data():
 
     BASE_DIR = Path(__file__).resolve().parent
-    input_file = BASE_DIR / "Players" / "NLN.xlsx"
+    input_file = BASE_DIR / "Players" / "all_divisions.xlsx"
 
     df = pd.read_excel(input_file)
 
